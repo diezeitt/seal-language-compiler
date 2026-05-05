@@ -205,6 +205,9 @@ int get_torder(char* type)
 
 void parse_ir()
 {
+	uint storecast_counter = 0;
+	uint returncast_counter = 0;
+	
 	bool scope = 0;
 	char* current_functype = NULL;
 	for (uint i = 0; i < ir_counter; i++)
@@ -277,7 +280,7 @@ void parse_ir()
 					break;
 				}
 
-				fprintf(llvm, "%%__storecast__ =");
+				fprintf(llvm, "%%__storecast__%d =", storecast_counter);
 				if (storevar_order > tmp_order)
 					fprintf(llvm, " zext");
 				else
@@ -288,10 +291,11 @@ void parse_ir()
 					ir[i - 1].tmp.name, 
 					ir[i].store.type);
 
-				fprintf(llvm, "store %s %%__storecast__, %s* %%%s\n",
-					ir[i].store.type, ir[i].store.type,  
+				fprintf(llvm, "store %s %%__storecast__%d, %s* %%%s\n",
+					ir[i].store.type, storecast_counter, ir[i].store.type,  
 					ir[i].store.var_name);
-				
+
+				storecast_counter++;
 				break;
 			case TYPE_RET:
 				const int ret_order = get_torder(ir[i].ret.type);
@@ -306,7 +310,7 @@ void parse_ir()
 					break;
 				}
 
-				fprintf(llvm, "%%___returncast___ =");
+				fprintf(llvm, "%%___returncast___%d =", returncast_counter);
 				if (current_funcorder > ret_order)
 					fprintf(llvm, " zext");
 				else
@@ -317,7 +321,8 @@ void parse_ir()
 					ir[i].ret.value, 
 					current_functype);
 
-				fprintf(llvm, "ret %s %%___returncast___\n", current_functype);
+				fprintf(llvm, "ret %s %%___returncast___%d\n", current_functype, returncast_counter);
+				returncast_counter++;
 				break;
 			default:
 		}
