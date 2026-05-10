@@ -56,7 +56,6 @@ void emit_tmp_singleop(OP_TYPE optype, char* type, char* name, char* left, char*
 	ir[ir_counter].tmp.left = left;
 	ir[ir_counter].tmp.lo_key = lo_key;
 
-
 	if(right != NULL)
 		ir[ir_counter].tmp.right = right;
 
@@ -216,11 +215,10 @@ char* expr(EXPR* e)
 				fprintf(ir_source, "label L%d_false\n", irlabel_counter);
 				fprintf(ir_source, "tmp t%d const i32 0\n", tmp_counter);
 				fprintf(ir_source, "label L%d_end\n", irlabel_counter);
+				asprintf(&result_binary, "t%d", tmp_counter);
 
 				tmp_counter++;
 				irlabel_counter++;
-
-				asprintf(&result_binary, "t%d", tmp_counter - 1);
 				return result_binary;
 			}
 
@@ -243,11 +241,10 @@ char* expr(EXPR* e)
 				fprintf(ir_source, "label L%d_true\n", irlabel_counter);
 				fprintf(ir_source, "tmp t%d const 1\n", tmp_counter);
 				fprintf(ir_source, "label L%d_end\n", irlabel_counter);
+				asprintf(&result_binary, "t%d", tmp_counter);
 
 				tmp_counter++;
 				irlabel_counter++;
-
-				asprintf(&result_binary, "t%d", tmp_counter - 1);
 				return result_binary;
 			}
 
@@ -336,18 +333,15 @@ char* expr(EXPR* e)
 				lo_key = 1;
 			}
 
-			tmp_counter++;
-			asprintf(&result_binary, "t%d", tmp_counter - 1);
-
-			if (lo_key)
-				type = "i1";
-
+			asprintf(&result_binary, "t%d", tmp_counter);
 			fprintf(ir_source, "tmp %s t%d %s", type, tmp_counter, oper);
 			fprintf(ir_source, " %s", left);
 			fprintf(ir_source, " %s\n", right);
 
 			emit_tmp_singleop(_oper, type, result_binary,
 				left, right, oper, lo_key);
+
+			tmp_counter++;
 			return result_binary;
 		}
 
@@ -357,7 +351,6 @@ char* expr(EXPR* e)
 			char* result_unary = NULL;
 
 			asprintf(&result_unary, "t%d", tmp_counter);
-
 			fprintf(ir_source, "tmp t%d neg %s\n", tmp_counter, unary_value);
 
 			tmp_counter++;
@@ -385,7 +378,6 @@ char* expr(EXPR* e)
 		case NODE_CALL:
 		{
 			char* result_call = NULL;
-
 			argsary* argsary_ref = malloc(sizeof(argsary) * e->call.argc);
 
 			for (uint i = 0; i < e->call.argc; i++)
@@ -400,7 +392,6 @@ char* expr(EXPR* e)
 				fprintf(ir_source, " %s", argsary_ref[i].arg);
 
 			fprintf(ir_source, "\n");
-
 			asprintf(&result_call, "t%d", tmp_counter);
 
 			tmp_counter++;

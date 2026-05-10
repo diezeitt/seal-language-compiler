@@ -40,6 +40,18 @@ char* get_tmptype(char* tmp_name)
 	return NULL;
 }
 
+bool get_tmplokey(char* tmp_name)
+{
+	for (uint i = 0; i < tmpbuffer_counter; i++)
+	{
+		if (strcmp(tmp_buffer[i].tmp.name, tmp_name) == 0)
+			return tmp_buffer[i].tmp.lo_key;
+	}
+
+	printf("err");
+	return 0;
+}
+
 void clear(char* out)
 {
 	if (out == NULL)
@@ -273,9 +285,29 @@ void parse_ir()
 					int right_order = get_torder(tmpright_type);
 					current_order = get_torder(ir[i].tmp.type);
 
+					if (get_tmplokey(ir[i].tmp.left) && current_order)
+					{
+						fprintf(llvm, "%%__leftcast__%d = zext i1 %%%s to %s\n",
+							leftcast_counter,
+							ir[i].tmp.left,
+							ir[i].tmp.type);
+
+						leftcast_key = 1;
+					}
+
+					if (get_tmplokey(ir[i].tmp.right) && current_order)
+					{
+						fprintf(llvm, "%%__rightcast__%d = zext i1 %%%s to %s\n",
+							rightcast_counter,
+							ir[i].tmp.right,
+							ir[i].tmp.type);
+
+						rightcast_key = 1;
+					}
+
 					if (!current_order && !ir[i].tmp.lo_key)
 					{
-						if (left_order < 1)
+						if (left_order < 1 && !leftcast_key)
 						{
 							fprintf(llvm, "%%__leftcast__%d = zext %s %%%s to i8\n",
 								leftcast_counter,
@@ -285,7 +317,7 @@ void parse_ir()
 							leftcast_key = 1;
 						}
 
-						if (left_order > 1)
+						if (left_order > 1 && !leftcast_key)
 						{
 							fprintf(llvm, "%%__leftcast__%d = trunc %s %%%s to i8\n",
 								leftcast_counter,
@@ -295,7 +327,7 @@ void parse_ir()
 							leftcast_key = 1;
 						}
 
-						if (right_order < 1)
+						if (right_order < 1 && !rightcast_key)
 						{
 							fprintf(llvm, "%%__rightcast__%d = zext %s %%%s to i8\n",
 								rightcast_counter,
@@ -305,7 +337,7 @@ void parse_ir()
 							rightcast_key = 1;
 						}
 
-						if (right_order > 1)
+						if (right_order > 1 && !rightcast_key)
 						{
 							fprintf(llvm, "%%__rightcast__%d = trunc %s %%%s to i8\n",
 								rightcast_counter,
@@ -317,7 +349,7 @@ void parse_ir()
 					}
 					else
 					{
-						if (current_order > left_order)
+						if (current_order > left_order && !leftcast_key)
 						{
 							fprintf(llvm, "%%__leftcast__%d = zext %s %%%s to %s\n",
 								leftcast_counter,
@@ -328,7 +360,7 @@ void parse_ir()
 							leftcast_key = 1;
 						}
 
-						if (current_order > right_order)
+						if (current_order > right_order && !rightcast_key)
 						{
 							fprintf(llvm, "%%__rightcast__%d = zext %s %%%s to %s\n",
 								rightcast_counter,
@@ -339,7 +371,7 @@ void parse_ir()
 							rightcast_key = 1;
 						}
 
-						if (current_order < left_order)
+						if (current_order < left_order && !leftcast_key)
 						{
 							fprintf(llvm, "%%__leftcast__%d = trunc %s %%%s to %s\n",
 								leftcast_counter,
@@ -350,7 +382,7 @@ void parse_ir()
 							leftcast_key = 1;
 						}
 
-						if (current_order < right_order)
+						if (current_order < right_order && !rightcast_key)
 						{
 							fprintf(llvm, "%%__rightcast__%d = trunc %s %%%s to %s\n",
 								rightcast_counter,
@@ -374,6 +406,7 @@ void parse_ir()
 
 						tmp_buffer[tmpbuffer_counter].tmp.name = ir[i].tmp.name;
 						tmp_buffer[tmpbuffer_counter].tmp.type = ir[i].tmp.type;
+						tmp_buffer[tmpbuffer_counter].tmp.lo_key = 0;
 						tmpbuffer_counter++;
 						tmp_buffer = realloc(tmp_buffer, sizeof(IR) * tmpbuffer_counter * 2);
 						break;
@@ -383,6 +416,7 @@ void parse_ir()
 
 						tmp_buffer[tmpbuffer_counter].tmp.name = ir[i].tmp.name;
 						tmp_buffer[tmpbuffer_counter].tmp.type = ir[i].tmp.type;
+						tmp_buffer[tmpbuffer_counter].tmp.lo_key = 0;
 						tmpbuffer_counter++;
 						tmp_buffer = realloc(tmp_buffer, sizeof(IR) * tmpbuffer_counter * 2);
 						break;
@@ -393,7 +427,7 @@ void parse_ir()
 							ir[i].tmp.left);
 
 						tmp_buffer[tmpbuffer_counter].tmp.name = ir[i].tmp.name;
-						tmp_buffer[tmpbuffer_counter].tmp.type = "i1";	
+						tmp_buffer[tmpbuffer_counter].tmp.type = ir[i].tmp.type;	
 						tmp_buffer[tmpbuffer_counter].tmp.lo_key = 1;
 						tmpbuffer_counter++;
 						tmp_buffer = realloc(tmp_buffer, sizeof(IR) * tmpbuffer_counter * 2);
