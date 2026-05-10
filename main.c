@@ -69,6 +69,15 @@ void parse_arg(uint argc, char** argv, char* *source, char* *output_name)
 				continue;	
 			}
 
+			if (strcmp(argv[i + 1], "all") == 0)
+			{
+				arg_flagref.ir = 1;
+				arg_flagref.llvm = 1;
+				arg_flagref.obj = 1;
+				arg_flagref.asm_flag = 1;
+				continue;	
+			}
+
 			cli_error("Wrong or missing save argument");
 		}
 	}
