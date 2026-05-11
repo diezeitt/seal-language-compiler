@@ -21,11 +21,11 @@ function install()
 end
 
 function run()
-    os.execute("./" .. target .. " --Save llvm --Save ir --Compile " .. arg[2]);
+    os.execute("./" .. target .. " --Save all --Compile " .. arg[2]);
 end
 
 function clear()
-    os.execute("rm " .. target);
+    os.execute("rm *.ll *.s *.o sealir.sir a");
 end
 
 CMD = arg[1];

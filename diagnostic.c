@@ -315,22 +315,11 @@ void codegen_error(const uint line, const uint column, const CODEGEN_LAYER_ERROR
 	switch (ERROR_TYPE)
 	{
 		case LLVM_CANNOT_COMPILE:
-			printf("LLVM cannot be compiled");
+			printf("LLVM cannot be compiled\n");
 			break;
 		case LLVM_CANNOT_LINK:
-			printf("LLVM cannot be linked");
+			printf("LLVM cannot be linked\n");
 			break;
 		default:
 	}
 }
-
-/*
-void ir_error(const char* source_file, const uint line, const uint column, const IR_LAYER_ERROR_TYPE ERROR_TYPE)
-{
-	printf("ir-err~~> %s:%d:%d\n", source_file, line, column);
-	print_lines(source_file, line);
-	print_caret(column);
-
-	// ...
-}
-*/

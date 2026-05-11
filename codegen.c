@@ -293,7 +293,7 @@ void parse_ir()
 							ir[i].tmp.type);
 
 						leftcast_key = 1;
-					}
+					} 
 
 					if (get_tmplokey(ir[i].tmp.right) && current_order)
 					{
@@ -421,13 +421,22 @@ void parse_ir()
 						tmp_buffer = realloc(tmp_buffer, sizeof(IR) * tmpbuffer_counter * 2);
 						break;
 					case OP_NOT:
-						fprintf(llvm, "%%%s = icmp eq %s %%%s, 0\n",
-							ir[i].tmp.name,
-							ir[i].tmp.type,
-							ir[i].tmp.left);
+						if (get_tmplokey(ir[i].tmp.left))
+						{
+							fprintf(llvm, "%%%s = icmp eq i1 %%%s, 0\n",
+									ir[i].tmp.name,
+									ir[i].tmp.left);
+						}
+						else
+						{
+							fprintf(llvm, "%%%s = icmp eq %s %%%s, 0\n",
+								ir[i].tmp.name,
+								ir[i].tmp.type,
+								ir[i].tmp.left);
+						}
 
 						tmp_buffer[tmpbuffer_counter].tmp.name = ir[i].tmp.name;
-						tmp_buffer[tmpbuffer_counter].tmp.type = ir[i].tmp.type;	
+						tmp_buffer[tmpbuffer_counter].tmp.type = "i1";
 						tmp_buffer[tmpbuffer_counter].tmp.lo_key = 1;
 						tmpbuffer_counter++;
 						tmp_buffer = realloc(tmp_buffer, sizeof(IR) * tmpbuffer_counter * 2);
@@ -483,6 +492,12 @@ void parse_ir()
 				int tmp_order = get_torder(tmp_type);
 				const int storevar_order = get_torder(ir[i].store.type);
 
+				if (get_tmplokey(ir[i].store.value))
+				{
+					tmp_type = "i1";
+					tmp_order = 0;
+				}
+
 				if (tmp_order == storevar_order)
 				{
 					fprintf(llvm, "store %s %%%s, %s* %%%s\n",
@@ -512,10 +527,11 @@ void parse_ir()
 			case TYPE_RET:
 				const int ret_order = get_torder(ir[i].ret.type);
 				const int current_funcorder = get_torder(current_functype);
+				bool ret_lo = get_tmplokey(ir[i].ret.value);
 
 				if (ret_order == current_funcorder)
 				{
-					fprintf(llvm, "ret %s %%%s\n", 
+					fprintf(llvm, "ret %s %%%s\n",
 						current_functype, 
 						ir[i].ret.value);
 
@@ -523,17 +539,28 @@ void parse_ir()
 				}
 
 				fprintf(llvm, "%%___returncast___%d =", returncast_counter);
-				if (current_funcorder > ret_order)
-					fprintf(llvm, " zext");
+				if (ret_lo && current_funcorder)
+				{
+					fprintf(llvm, " zext i1 %%%s to %s\n",
+						ir[i].ret.value,
+						current_functype);
+				}
 				else
-					fprintf(llvm, " trunc");
+				{
+					if (current_funcorder > ret_order)
+						fprintf(llvm, " zext");
+					else
+						fprintf(llvm, " trunc");
 
-				fprintf(llvm, " %s %%%s to %s\n", 
-					ir[i].ret.type,
-					ir[i].ret.value, 
-					current_functype);
+					fprintf(llvm, " %s %%%s to %s\n",
+						ir[i].ret.type,
+						ir[i].ret.value,
+						current_functype);
+				}
 
-				fprintf(llvm, "ret %s %%___returncast___%d\n", current_functype, returncast_counter);
+				fprintf(llvm, "ret %s %%___returncast___%d\n",
+					current_functype, 
+					returncast_counter);
 				returncast_counter++;
 				break;
 			default:
