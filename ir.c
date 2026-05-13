@@ -1,4 +1,5 @@
 /*
+
  Seal Compiler - IR Layer
  Copyright (C) 2026 Habil Yıldırım
 
@@ -15,6 +16,7 @@
  You should have received a copy of the GNU General Public License
  along with this program.
  If not, see <https://www.gnu.org/licenses/>.
+ 
 */
 
 #include "parser.h"
@@ -47,7 +49,7 @@ void emit_ret(char* type, char* value)
 	ir_counter++;
 }
 
-void emit_tmp_singleop(OP_TYPE optype, char* type, char* name, char* left, char* right, char* oper, bool lo_key)
+void emit_tmp_singleop(OP_TYPE optype, char* type, char* name, char* left, char* right, char* oper, bool lo_key, bool global_key)
 {
 	ir = realloc(ir, sizeof(IR) * (ir_counter + 1));
 	ir[ir_counter].type = TYPE_TMP;
@@ -60,27 +62,45 @@ void emit_tmp_singleop(OP_TYPE optype, char* type, char* name, char* left, char*
 	if(right != NULL)
 		ir[ir_counter].tmp.right = right;
 
+	if (global_key)
+		ir[ir_counter].scope = "global";
+	else
+		ir[ir_counter].scope = general_scope;
+
 	ir[ir_counter].tmp.op = optype;
-	ir[ir_counter].scope = general_scope;
 	ir_counter++;
 }
 
-void emit_alloc(char* var_name, char* type, bool scope)
+void emit_alloc(char* var_name, char* type, bool global_key)
 {
 	ir = realloc(ir, sizeof(IR) * (ir_counter + 1));
 	ir[ir_counter].type = TYPE_ALLOCATE;	
 	ir[ir_counter].allocate.var_name = var_name;
 	ir[ir_counter].allocate.type = type;
 
-	if (scope)
-		ir[ir_counter].scope = "global";
+	if (global_key)
+		ir[ir_counter].scope = "global";		
 	else
 		ir[ir_counter].scope = general_scope;
-
+		
 	ir_counter++;
 }
 
-void emit_store(char* var_name, char* type, char* value, bool scope)
+bool is_local(char* var_name)
+{
+	for (uint i = 0; i < ir_counter; i++)
+	{
+		if (strcmp(ir[i].allocate.var_name, var_name) == 0 && 
+			strcmp(ir[i].scope, "global") == 0)
+		{
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+void emit_store(char* var_name, char* type, char* value, bool global_key)
 {
 	ir = realloc(ir, sizeof(IR) * (ir_counter + 1));
 	ir[ir_counter].type = TYPE_STORE;
@@ -88,11 +108,11 @@ void emit_store(char* var_name, char* type, char* value, bool scope)
 	ir[ir_counter].store.type = type;
 	ir[ir_counter].store.value = value;
 
-	if (scope)
+	if (global_key)
 		ir[ir_counter].scope = "global";
 	else
 		ir[ir_counter].scope = general_scope;
-		
+
 	ir_counter++;
 }
 
@@ -157,24 +177,21 @@ char* expr(EXPR* e)
 				{
 					case TYPE_TMP:
 						fprintf(ir_source, " %s %s", ir[ir_counter - 1].tmp.type, 
-													 e->literal);
-
+							e->literal);
 						emit_tmp_singleop(OP_CONST, ir[ir_counter - 1].tmp.type,
-													result_literal, e->literal, NULL, NULL, 0);
+							result_literal, e->literal, NULL, NULL, 0, 0);
 						break;
 					case TYPE_ALLOCATE:
 						fprintf(ir_source, " %s %s", ir[ir_counter - 1].allocate.type,
-													 e->literal);
-						
+							e->literal);
 						emit_tmp_singleop(OP_CONST, ir[ir_counter - 1].allocate.type,
-													result_literal, e->literal, NULL, NULL, 0);
+							result_literal, e->literal, NULL, NULL, 0, 0);
 						break;
 					case TYPE_STORE:
 						fprintf(ir_source, " %s %s", ir[ir_counter - 1].store.type, 
-													 e->literal);
-
+							e->literal);
 						emit_tmp_singleop(OP_CONST, ir[ir_counter - 1].store.type,
-													result_literal, e->literal, NULL, NULL, 0);
+							result_literal, e->literal, NULL, NULL, 0, 0);
 						break;
 					default:
 				}
@@ -182,10 +199,9 @@ char* expr(EXPR* e)
 			else
 			{
 				fprintf(ir_source, " %s %s\n", type_control(e->literal), 
-											  e->literal);
-
+					e->literal);
 				emit_tmp_singleop(OP_CONST, type_control(e->literal),
-											result_literal, e->literal, NULL, NULL, 0);
+					result_literal, e->literal, NULL, NULL, 0, 0);
 			}
 
 			tmp_counter++;
@@ -196,11 +212,22 @@ char* expr(EXPR* e)
 		{
 			char* result_identifier = NULL;
 			asprintf(&result_identifier, "t%d", tmp_counter);
-
 			char* type = get_vartype(e->identifier);
-			fprintf(ir_source, "tmp t%d load %s %s\n", tmp_counter, type, e->identifier);
-
-			emit_tmp_singleop(OP_LOAD, type, result_identifier, e->identifier, NULL, NULL, 0);
+			
+			if (is_local(e->identifier) == 0)
+			{
+				fprintf(ir_source, "tmp t%d load %s @%s\n",
+					tmp_counter, type, e->identifier);
+				emit_tmp_singleop(OP_LOAD, type, result_identifier, 
+					e->identifier, NULL, NULL, 0, 1);
+			}
+			else
+			{
+				fprintf(ir_source, "tmp t%d load %s %s\n", 
+					tmp_counter, type, e->identifier);
+				emit_tmp_singleop(OP_LOAD, type, result_identifier, 
+					e->identifier, NULL, NULL, 0, 0);
+			}
 
 			tmp_counter++;
 			return result_identifier;
@@ -313,7 +340,7 @@ char* expr(EXPR* e)
 			fprintf(ir_source, " %s\n", right);
 
 			emit_tmp_singleop(_oper, type, result_binary,
-				left, right, oper, lo_key);
+				left, right, oper, lo_key, 0);
 
 			tmp_counter++;
 			return result_binary;
@@ -328,7 +355,7 @@ char* expr(EXPR* e)
 			fprintf(ir_source, "tmp t%d neg %s\n", tmp_counter, unary_value);
 
 			emit_tmp_singleop(OP_NEG, ir[ir_counter - 1].tmp.type, result_unary, 
-				NULL, unary_value, NULL, 0);
+				NULL, unary_value, NULL, 0, 0);
 
 			tmp_counter++;
 			return result_unary;
@@ -342,7 +369,7 @@ char* expr(EXPR* e)
 			asprintf(&result_not, "t%d", tmp_counter);
 
 			emit_tmp_singleop(OP_NOT, ir[ir_counter - 1].tmp.type, result_not,
-				not_value, NULL, NULL, 0);
+				not_value, NULL, NULL, 0, 0);
 
 			fprintf(ir_source, "tmp %s not %s %s\n", result_not, 
 				ir[ir_counter - 1].tmp.type,
@@ -392,7 +419,7 @@ void ir_main()
 		{
 			case FUNCTION:
 			{
-				if (!return_key && strcmp(general_scope, "global") != 0)
+				if (!return_key && strcmp(ast[i - 1].scope, "global") != 0)
 					emit_ret("i8", "0");
 
 				tmp_counter = 0;
@@ -400,15 +427,19 @@ void ir_main()
 				fprintf(ir_source, "func %s:%s ", ast[i].function.type,
 												  ast[i].function.name);
 
+				ir = realloc(ir, sizeof(IR) * (ir_counter + 1));
 				ir[ir_counter].type = TYPE_FUNC;
 				ir[ir_counter].func.type = ast[i].function.type;
 				ir[ir_counter].func.name = ast[i].function.name;
 				ir[ir_counter].func.argc = ast[i].function.argc;
 
+				if (ir[ir_counter].func.argc > 0)
+					ir[ir_counter].func.args = malloc(sizeof(arg) * ast[i].function.argc);
+				
 				uint l = 0;
-
 				for (;l < ast[i].function.argc; l++)
 				{
+					ir = realloc(ir, sizeof(IR) * (ir_counter + 1));
 					fprintf(ir_source, " %s:%s", ast[i].function.args[l].name,
 												 ast[i].function.args[l].type);
 
@@ -418,7 +449,6 @@ void ir_main()
 				fprintf(ir_source, "\n");
 
 				general_scope = ast[i].function.name;
-				ir = realloc(ir, sizeof(IR) * (ir_counter + 1));
 				ir_counter++;
 				break;
 			}
@@ -486,15 +516,15 @@ void ir_main()
 			{
 				char* result = expr(ast[i].assignment.value);
 
-				if (strcmp(ast[i].scope, "global") == 0)
+				if (is_local(ast[i].assignment.name) == 0) 
 				{
-					fprintf(ir_source, "store %s %s @%s\n", ast[i].assignment.name,
+					fprintf(ir_source, "store @%s %s %s\n", ast[i].assignment.name,
 						ast[i].assignment.type,
 						result);
 					emit_store(ast[i].var.name, ast[i].assignment.type, result, 1);
 					break;
 				}
-				
+
 				fprintf(ir_source, "store %s %s %%%s\n", ast[i].assignment.name,
 					ast[i].assignment.type,
 					result);

@@ -1,7 +1,6 @@
 /*
 
 	Seal Compiler - Preprocessor Engine
-
 	Copyright (C) 2026 Habil Yıldırım
 
 	This program is free software: you can redistribute it and/or modify

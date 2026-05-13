@@ -1,7 +1,6 @@
 /*
 
 	Seal Compiler - Code Generator
-
 	Copyright (C) 2026 Habil Yıldırım
 
 	This program is free software: you can redistribute it and/or modify
@@ -48,7 +47,6 @@ bool get_tmplokey(char* tmp_name)
 			return tmp_buffer[i].tmp.lo_key;
 	}
 
-	printf("err");
 	return 0;
 }
 
@@ -268,7 +266,7 @@ void parse_ir()
 					fprintf(llvm, "%s %%%s", ir[i].func.args[c].type, 
 											 ir[i].func.args[c].name);
 
-					if (c != ir[i].func.argc)
+					if (c != ir[i].func.argc - 1)
 						fprintf(llvm, ",");
 				}
 				fprintf(llvm ,") {\nentry:\n");
@@ -413,8 +411,13 @@ void parse_ir()
 						tmp_buffer = realloc(tmp_buffer, sizeof(IR) * tmpbuffer_counter * 2);
 						break;
 					case OP_LOAD:
-						fprintf(llvm, "load %s, %s* %%%s\n", ir[i].tmp.type,
-							ir[i].tmp.type, ir[i].tmp.left);
+						fprintf(llvm, "load %s, %s* ", ir[i].tmp.type,
+							ir[i].tmp.type);
+
+						if (strcmp(ir[i].scope, "global") == 0)
+							fprintf(llvm, "@%s\n", ir[i].tmp.left);
+						else
+							fprintf(llvm, "%%%s\n", ir[i].tmp.left);
 
 						tmp_buffer[tmpbuffer_counter].tmp.name = ir[i].tmp.name;
 						tmp_buffer[tmpbuffer_counter].tmp.type = ir[i].tmp.type;
@@ -509,7 +512,15 @@ void parse_ir()
 				break;
 			case TYPE_ALLOCATE:
 				if (strcmp(ir[i].scope, "global") == 0)
-					fprintf(llvm, "@%s = global %s\n", ir[i].allocate.var_name, ir[i].allocate.type);
+				{
+					if (scope)
+					{
+						fprintf(llvm, "}");
+						scope = 0;
+					}
+
+					fprintf(llvm, "@%s = global %s 0\n", ir[i].allocate.var_name, ir[i].allocate.type);
+				}
 				else
 					fprintf(llvm, "%%%s = alloca %s\n", ir[i].allocate.var_name, ir[i].allocate.type);
 
