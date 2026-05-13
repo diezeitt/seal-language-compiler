@@ -390,12 +390,11 @@ void semantic_main()
 				}
 
 				/*
-					No null expression control because 
-					assignment expression cannot be null there	
+					No null expression control because
+					assignment expression cannot be null there
 				*/
 
 				const char* assignment_type = var_buffer[index].var.type;
-
 				expr_control(ast[i], assignment_type, ast[i].assignment.value);
 				break;
 			case CALL:

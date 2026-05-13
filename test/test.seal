@@ -9,6 +9,6 @@ i32 foo(i32 n, i32 b)
 #
 i32 main()
 {
-	a = 3;
+	a = 0xa;
     return a;
 }

@@ -214,6 +214,22 @@ void emit_token(const _token_type tt, _token_group tg, const char* value, const 
 	tokens[tokens_counter].file = "test";
 }
 
+char* convert_decimal(char* value)
+{
+    long decimal = 0;
+
+    if (strncmp(value, "0x", 2) == 0)
+        decimal = strtol(value + 2, NULL, 16);
+    if (strncmp(value, "0b", 2) == 0)
+        decimal = strtol(value + 2, NULL, 2);
+
+    int result_len = snprintf(NULL, 0, "%ld", decimal);
+    char* result = (char*)malloc(result_len + 1);
+    
+    snprintf(result, result_len + 1, "%ld", decimal);
+    return result;
+}
+
 typedef enum
 {
 	PASS,
@@ -501,11 +517,15 @@ void read_integer_literal(uint *i)
 			update_position(*i);
 			read_buffer(buffer, *i, READ_INTEGER_LITERAL);
 		}
-
+		
 		if (isalpha(buffer[*i]) && !isxdigit(buffer[*i]))
 			lexer_error(line_counter, column_counter, IS_NOT_HEX);
 
-		emit_token(INTEGER_LITERAL, LITERAL, lexeme_buffer, tokens_counter, line_counter, column_counter);
+		char* value = convert_decimal(lexeme_buffer);
+		clear_buffer(lexeme_buffer, &lexeme_buffer_counter);
+		emit_token(INTEGER_LITERAL, LITERAL, value, tokens_counter, line_counter, column_counter);
+		free(value);
+		tokens_counter++;
 		return;
 	}
 
@@ -522,7 +542,11 @@ void read_integer_literal(uint *i)
 		if (isalpha(buffer[*i]) || (!_isbinary(buffer[*i]) && isdigit(buffer[*i])))
 			lexer_error(line_counter, column_counter, IS_NOT_BIN);
 
-		emit_token(INTEGER_LITERAL, LITERAL, lexeme_buffer, tokens_counter, line_counter, column_counter);
+		char* value = convert_decimal(lexeme_buffer);
+		clear_buffer(lexeme_buffer, &lexeme_buffer_counter);
+		emit_token(INTEGER_LITERAL, LITERAL, value, tokens_counter, line_counter, column_counter);
+		free(value);
+		tokens_counter++;
 		return;
 	}
 

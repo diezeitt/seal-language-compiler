@@ -165,7 +165,6 @@ EXPR* parse_primary(uint *i)
         free(node);
         return inner;
     }
-    
 
 	parser_error(tok.line, tok.column, WRONG_EXPRESSION);
 }
