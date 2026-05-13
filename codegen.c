@@ -508,7 +508,11 @@ void parse_ir()
 					}
 				break;
 			case TYPE_ALLOCATE:
-				fprintf(llvm, "%%%s = alloca %s\n", ir[i].allocate.var_name, ir[i].allocate.type);
+				if (strcmp(ir[i].scope, "global") == 0)
+					fprintf(llvm, "@%s = global %s\n", ir[i].allocate.var_name, ir[i].allocate.type);
+				else
+					fprintf(llvm, "%%%s = alloca %s\n", ir[i].allocate.var_name, ir[i].allocate.type);
+
 				break;
 			case TYPE_STORE:
 				char* tmp_type = get_tmptype(ir[i].store.value);
@@ -542,9 +546,13 @@ void parse_ir()
 					ir[i].store.value,
 					ir[i].store.type);
 
-				fprintf(llvm, "store %s %%__storecast__%d, %s* %%%s\n",
-					ir[i].store.type, storecast_counter, ir[i].store.type,  
-					ir[i].store.var_name);
+				fprintf(llvm, "store %s %%__storecast__%d, %s* ",
+					ir[i].store.type, storecast_counter, ir[i].store.type);
+
+				if (strcmp(ir[i].scope, "global") == 0)
+					fprintf(llvm, "@%s\n", ir[i].store.var_name);
+				else
+					fprintf(llvm, "%%%s\n", ir[i].store.var_name);
 
 				storecast_counter++;
 				break;

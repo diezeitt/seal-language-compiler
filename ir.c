@@ -43,6 +43,7 @@ void emit_ret(char* type, char* value)
 	ir[ir_counter].type = TYPE_RET;
 	ir[ir_counter].ret.type = type;
 	ir[ir_counter].ret.value = value;
+	ir[ir_counter].scope = general_scope;
 	ir_counter++;
 }
 
@@ -60,25 +61,38 @@ void emit_tmp_singleop(OP_TYPE optype, char* type, char* name, char* left, char*
 		ir[ir_counter].tmp.right = right;
 
 	ir[ir_counter].tmp.op = optype;
+	ir[ir_counter].scope = general_scope;
 	ir_counter++;
 }
 
-void emit_alloc(char* var_name, char* type)
+void emit_alloc(char* var_name, char* type, bool scope)
 {
 	ir = realloc(ir, sizeof(IR) * (ir_counter + 1));
 	ir[ir_counter].type = TYPE_ALLOCATE;	
 	ir[ir_counter].allocate.var_name = var_name;
 	ir[ir_counter].allocate.type = type;
+
+	if (scope)
+		ir[ir_counter].scope = "global";
+	else
+		ir[ir_counter].scope = general_scope;
+
 	ir_counter++;
 }
 
-void emit_store(char* var_name, char* type, char* value)
+void emit_store(char* var_name, char* type, char* value, bool scope)
 {
 	ir = realloc(ir, sizeof(IR) * (ir_counter + 1));
 	ir[ir_counter].type = TYPE_STORE;
 	ir[ir_counter].store.var_name = var_name;
 	ir[ir_counter].store.type = type;
 	ir[ir_counter].store.value = value;
+
+	if (scope)
+		ir[ir_counter].scope = "global";
+	else
+		ir[ir_counter].scope = general_scope;
+		
 	ir_counter++;
 }
 
@@ -371,43 +385,14 @@ void ir_main()
 	ir = malloc(sizeof(IR) * 512);
 	ir_source = fopen("sealir.sir", "wr");
 
-	bool global_key = 0;
-
-	for (uint i = 0; i < ast_counter; i++)
-	{
-		if (strcmp(ast[i].scope, "global") == 0)
-		{
-			if (global_key == 0 && ast[i].type != FUNCTION)
-			{
-				fprintf(ir_source, "global:\n");
-				global_key = 1;
-			}
-
-			switch (ast[i].type)
-			{
-				case UVAR:
-				case VAR:
-					fprintf(ir_source, "alloc %s %s\n", ast[i].var.name, 
-						ast[i].var.type);
-					fprintf(ir_source, "store %s %s\n", ast[i].var.name, 
-						expr(ast[i].var.value));
-				default:
-			}
-		}
-	}
-
 	bool return_key = 1;
-
 	for (uint i = 0; i < ast_counter; i++)
 	{
-		if (strcmp(ast[i].scope, "global") == 0 && ast[i].type != FUNCTION)
-			continue;
-
 		switch (ast[i].type)
 		{
 			case FUNCTION:
 			{
-				if (!return_key)
+				if (!return_key && strcmp(general_scope, "global") != 0)
 					emit_ret("i8", "0");
 
 				tmp_counter = 0;
@@ -422,7 +407,7 @@ void ir_main()
 
 				uint l = 0;
 
-				for (; l < ast[i].function.argc; l++)
+				for (;l < ast[i].function.argc; l++)
 				{
 					fprintf(ir_source, " %s:%s", ast[i].function.args[l].name,
 												 ast[i].function.args[l].type);
@@ -480,20 +465,41 @@ void ir_main()
 			case UVAR:
 			case VAR:
 			{
+				if (strcmp(ast[i].scope, "global") == 0)
+				{
+					fprintf(ir_source, "alloc %s %s\n", ast[i].var.name, ast[i].var.type);
+					emit_alloc(ast[i].var.name, ast[i].var.type, 1);
+					break;
+				}
+
 				fprintf(ir_source, "alloc %s %s\n", ast[i].var.name, ast[i].var.type);
-				emit_alloc(ast[i].var.name, ast[i].var.type);
+				emit_alloc(ast[i].var.name, ast[i].var.type, 0);
 
 				char* result = expr(ast[i].var.value);
+				emit_store(ast[i].var.name, ast[i].var.type, result, 0);
+				
 				fprintf(ir_source, "store %s %s %s\n", ast[i].var.name, ast[i].var.type, result);
-				emit_store(ast[i].var.name, ast[i].var.type, result);
 				break;
 			}
 
 			case PARSE_ASSIGNMENT:
 			{
 				char* result = expr(ast[i].assignment.value);
-				fprintf(ir_source, "store %s %s %s\n", ast[i].assignment.name, ast[i].assignment.type, result);
-				emit_store(ast[i].var.name, ast[i].assignment.type, result);
+
+				if (strcmp(ast[i].scope, "global") == 0)
+				{
+					fprintf(ir_source, "store %s %s @%s\n", ast[i].assignment.name,
+						ast[i].assignment.type,
+						result);
+					emit_store(ast[i].var.name, ast[i].assignment.type, result, 1);
+					break;
+				}
+				
+				fprintf(ir_source, "store %s %s %%%s\n", ast[i].assignment.name,
+					ast[i].assignment.type,
+					result);
+
+				emit_store(ast[i].var.name, ast[i].assignment.type, result, 0);
 				break;
 			}
 
