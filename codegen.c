@@ -243,6 +243,8 @@ void parse_ir()
 	uint rightcast_counter = 0;
 	bool rightcast_key = 0;
 
+	uint negcast_counter = 0;
+
 	bool scope = 0;
 	char* current_functype = NULL;
 	for (uint i = 0; i < ir_counter; i++)
@@ -395,7 +397,7 @@ void parse_ir()
 					}
 				}
 
-				if (ir[i].tmp.op != OP_NOT)
+				if (ir[i].tmp.op != OP_NOT && ir[i].tmp.op != OP_NEG)
 					fprintf(llvm, "%%%s = ", ir[i].tmp.name);
 
 				switch (ir[i].tmp.op)
@@ -444,17 +446,21 @@ void parse_ir()
 					case OP_NEG:
 						if (get_tmplokey(ir[i].tmp.right))
 						{
-							fprintf(llvm, "sub i1 0, %%%s\n", ir[i].tmp.right);
-							tmp_buffer[tmpbuffer_counter].tmp.type = "i1";
-							tmp_buffer[tmpbuffer_counter].tmp.lo_key = 1;
+							fprintf(llvm, "%%__negcast__%d = zext i1 %%%s to i8\n", negcast_counter, 
+								ir[i].tmp.right);
+							fprintf(llvm, "%%%s = sub i8 0, %%__negcast__%d\n", ir[i].tmp.name, 
+								negcast_counter);
+							tmp_buffer[tmpbuffer_counter].tmp.type = "i8";
+							negcast_counter++;
 						}
 						else
 						{
-							fprintf(llvm, "sub %s 0, %%%s\n", ir[i].tmp.type, ir[i].tmp.right);
+							fprintf(llvm, "%%%s = sub %s 0, %%%s\n", ir[i].tmp.name, ir[i].tmp.type, 
+								ir[i].tmp.right);
 							tmp_buffer[tmpbuffer_counter].tmp.type = ir[i].tmp.type;
-							tmp_buffer[tmpbuffer_counter].tmp.lo_key = 0;
 						}
 
+						tmp_buffer[tmpbuffer_counter].tmp.lo_key = 0;
 						tmp_buffer[tmpbuffer_counter].tmp.name = ir[i].tmp.name;
 						tmpbuffer_counter++;
 						tmp_buffer = realloc(tmp_buffer, sizeof(IR) * tmpbuffer_counter * 2);
