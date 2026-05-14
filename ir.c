@@ -86,6 +86,16 @@ void emit_alloc(char* var_name, char* type, bool global_key)
 	ir_counter++;
 }
 
+void emit_label(char* label_name)
+{
+	ir = realloc(ir, sizeof(IR) * (ir_counter + 1));
+	ir[ir_counter].type = TYPE_LABEL;
+	ir[ir_counter].label.label_name = label_name;
+	ir[ir_counter].scope = general_scope;
+
+	ir_counter++;
+}
+
 bool is_local(char* var_name)
 {
 	for (uint i = 0; i < ir_counter; i++)
@@ -544,6 +554,7 @@ void ir_main()
 			case LABEL:
 			{
 				fprintf(ir_source, "label %s\n", ast[i].label.name);
+				emit_label(ast[i].label.name);
 				break;
 			}
 			default:

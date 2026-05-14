@@ -567,6 +567,9 @@ void parse_ir()
 
 				storecast_counter++;
 				break;
+			case TYPE_LABEL:
+				fprintf(llvm, "%s:\n", ir[i].label.label_name);
+				break;
 			case TYPE_RET:
 				const int ret_order = get_torder(ir[i].ret.type);
 				const int current_funcorder = get_torder(current_functype);
