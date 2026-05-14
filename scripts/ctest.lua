@@ -1,47 +1,39 @@
 #!/bin/lua
 
 local target_file = arg[1]
-if not target_file then
-    print("Missing Argument.")
-    os.exit()
+
+if not target_file then 
+	print("Missing Argument.") 
+	os.exit() 
 end
 
-local file_convert = target_file:gsub("%..-$", "") .. "_converted.c"
+local file_convert = target_file:gsub("%..-$", "") .. ".c"
 local file_read = io.open(target_file,"r")
 local file_write = io.open(file_convert, "w")
-
-local types = 
-{
-    ["i1"]  = "int", 
-    ["i8"]  = "int",
-    ["i16"] = "int", 
-    ["i32"] = "int", 
-    ["i64"] = "int" 
-}
-
 local scope = 0
+
 for line in file_read:lines() do
-	if not line:find("#") then
-    	if line:find("{") then
-    		scope = scope + 1
-    	end
+	if line:find("#") then
+        if line:find("%(") and line:find("%)") then
+            line = line:gsub("#", "")
+        else
+            line = ""
+        end
+    end
 
-    	for inex, inew in pairs(types) do
-    		line = line:gsub("%f[%w]" .. inex .. "%f[%W]", inew) 
-    	end
+    line = line:gsub("%f[%w]i%d+%f[%W]", "int")
+    local brace_open  = line:find("{")
+    local brace_close = line:find("}")
 
-        if scope == 0 then
-        	if line:find("int") and line:find(";") and not line:find("=") then
-        		line = line:gsub(";", " = 0;")
-    		end
-		end
+    if scope == 0 and not brace_open then
+        if line:find("int") and line:find(";") and not line:find("=") then
+        	line = line:gsub(";", " = 0;")
+        end
+    end
 
-		if line:find("}") then 
-			scope = scope - 1 
-		end
-
-		file_write:write(line .. "\n")
-	end
+    if brace_open then scope = scope + 1 end
+    if brace_close then scope = scope - 1 end
+    file_write:write(line .. "\n")
 end
 
 file_read:close()
