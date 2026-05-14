@@ -95,7 +95,6 @@ typedef struct
 		struct
 		{
 			char* condition;
-			char* value;
 			char* label;
 		}
 		jump;

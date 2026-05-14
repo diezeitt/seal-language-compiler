@@ -235,13 +235,13 @@ void parse_ir()
 	
 	uint storecast_counter = 0;
 	uint returncast_counter = 0;
-
-	uint leftcast_counter = 0;
-	bool leftcast_key = 0;
-	uint rightcast_counter = 0;
-	bool rightcast_key = 0;
-
 	uint negcast_counter = 0;
+	uint leftcast_counter = 0;
+	uint rightcast_counter = 0;
+	uint jumpcast_counter = 0;
+
+	bool leftcast_key = 0;
+	bool rightcast_key = 0;
 
 	bool scope = 0;
 	char* current_functype = NULL;
@@ -527,7 +527,6 @@ void parse_ir()
 				break;
 			case TYPE_STORE:
 				char* tmp_type = get_tmptype(ir[i].store.value);
-				
 				int tmp_order = get_torder(tmp_type);
 				const int storevar_order = get_torder(ir[i].store.type);
 
@@ -568,7 +567,37 @@ void parse_ir()
 				storecast_counter++;
 				break;
 			case TYPE_LABEL:
+				fprintf(llvm, "br label %%%s\n", ir[i].label.label_name);
 				fprintf(llvm, "%s:\n", ir[i].label.label_name);
+				break;
+			case TYPE_JUMP:
+				char* condition_type = get_tmptype(ir[i].jump.condition);
+				if (get_tmplokey(ir[i].jump.condition) || strcmp(condition_type, "i1") == 0)
+				{
+					fprintf(llvm, "br i1 %%%s, label %%%s, label %%%s__false__%d\n",
+						ir[i].jump.condition,
+						ir[i].jump.label,
+						ir[i].jump.label,
+						jumpcast_counter);
+					fprintf(llvm, "%s__false__%d:\n", ir[i].jump.label, jumpcast_counter);
+
+					jumpcast_counter++;
+					break;
+				}
+
+				fprintf(llvm, "%%__jumpcast__%d = trunc %s %%%s to i1\n",
+					jumpcast_counter,
+					condition_type,
+					ir[i].jump.condition);
+
+				fprintf(llvm, "br i1 %%__jumpcast__%d, label %%%s, label %%%s__false__%d\n",
+					jumpcast_counter,
+					ir[i].jump.label,
+					ir[i].jump.label,
+					jumpcast_counter);
+				fprintf(llvm, "%s__false__%d:\n", ir[i].jump.label, jumpcast_counter);
+
+				jumpcast_counter++;
 				break;
 			case TYPE_RET:
 				const int ret_order = get_torder(ir[i].ret.type);

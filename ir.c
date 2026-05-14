@@ -96,6 +96,16 @@ void emit_label(char* label_name)
 	ir_counter++;
 }
 
+void emit_jumper(char* condition, char* label)
+{
+	ir = realloc(ir, sizeof(IR) * (ir_counter + 1));
+	ir[ir_counter].type = TYPE_JUMP;
+	ir[ir_counter].jump.condition = condition;
+	ir[ir_counter].jump.label = label;
+
+	ir_counter++;
+}
+
 bool is_local(char* var_name)
 {
 	for (uint i = 0; i < ir_counter; i++)
@@ -545,9 +555,12 @@ void ir_main()
 
 			case JUMPER:
 			{
-				fprintf(ir_source, "jmp if_true %s %s\n",
-							expr(ast[i].jumper.condition),
+				char* result = expr(ast[i].jumper.condition);
+				fprintf(ir_source, "br %s %s\n",
+							result,
 							ast[i].jumper.label);
+
+				emit_jumper(result, ast[i].jumper.label);
 				break;
 			}
 
@@ -559,7 +572,7 @@ void ir_main()
 			}
 			default:
 		}
-
+     
 		if (ast[i].type != RETURN)
 			return_key = 0;
 		else

@@ -1,15 +1,13 @@
-i32 a;
+i32 b;
 
-# i32 foo(i32 n, i32 b)
+# 
+i32 main()
 {
-	return 5;
-}
+	b = 0;
 
-# i32 main()
-{
-	a = 0xa;
-    return a;
+	:loop
+		b = b + 1;
+	jump (b != 255) loop;
 
-    :test
-    return 11;
+	return b;
 }
