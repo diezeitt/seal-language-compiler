@@ -25,7 +25,7 @@ function run()
 end
 
 function clear()
-    os.execute("rm *.ll *.s *.o sealir.sir a");
+    os.execute("rm *.ll *.s *.o sealir.sir a *.out test/test.c");
 end
 
 CMD = arg[1];

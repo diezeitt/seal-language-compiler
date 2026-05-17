@@ -63,6 +63,8 @@ typedef struct
 			char* right;
 			bool lo_key;
 
+			// for call node
+			char* callee;
 			uint argc;
 			arg* args;
 		}
@@ -89,6 +91,7 @@ typedef struct
 			char* var_name;
 			char* type;
 			char* value;
+			bool arg_key;
 		}
 		store;
 

@@ -239,6 +239,7 @@ void parse_ir()
 	uint leftcast_counter = 0;
 	uint rightcast_counter = 0;
 	uint jumpcast_counter = 0;
+	uint callcast_counter = 0;
 
 	bool leftcast_key = 0;
 	bool rightcast_key = 0;
@@ -395,8 +396,14 @@ void parse_ir()
 					}
 				}
 
-				if (ir[i].tmp.op != OP_NOT && ir[i].tmp.op != OP_NEG)
-					fprintf(llvm, "%%%s = ", ir[i].tmp.name);
+				switch (ir[i].tmp.op)
+				{
+					case OP_NOT: break;
+					case OP_NEG: break;
+					case OP_CALL: break;
+					default:
+						fprintf(llvm, "%%%s = ", ir[i].tmp.name);	
+				}
 
 				switch (ir[i].tmp.op)
 				{
@@ -468,8 +475,69 @@ void parse_ir()
 						tmpbuffer_counter++;
 						tmp_buffer = realloc(tmp_buffer, sizeof(IR) * tmpbuffer_counter * 2);
 						break;
+					case OP_CALL:
+						typedef struct
+						{
+							char* arg_value;
+						} 
+						call_args;
+						call_args* call_arg = NULL;
+
+						for (uint c = 0; c < ir[i].tmp.argc; c++)
+						{
+							call_arg = realloc(call_arg, sizeof(call_args) * (c + 1));
+
+							uint current_order = get_torder(ir[i].tmp.args[c].type);							
+							char* value_type = get_tmptype(ir[i].tmp.args[c].name);
+							uint value_order = get_torder(value_type);
+
+							char* callcast = NULL;
+							if (current_order > value_order)
+							{
+								fprintf(llvm, "%%__callcast__%d = zext %s %%%s to %s\n", callcast_counter, value_type, 
+									ir[i].tmp.args[c].name, ir[i].tmp.args[c].type);
+									
+								asprintf(&callcast, "__callcast__%d", callcast_counter);
+								call_arg[c].arg_value = callcast;
+								callcast_counter++;
+								continue;
+							}
+
+							if (current_order < value_order)
+							{
+								fprintf(llvm, "%%__callcast__%d = trunc %s %%%s to %s\n", callcast_counter, value_type, 
+									ir[i].tmp.args[c].name, ir[i].tmp.args[c].type);
+									
+								asprintf(&callcast, "__callcast__%d", callcast_counter);
+								call_arg[c].arg_value = callcast;
+								callcast_counter++;
+								continue;
+							}
+
+							call_arg[c].arg_value = ir[i].tmp.args[c].name;
+						}
+
+						fprintf(llvm, "%%%s = call %s @%s(", ir[i].tmp.name, ir[i].tmp.type, ir[i].tmp.callee);
+						for (uint c = 0; ir[i].tmp.argc != 0 && c < ir[i].tmp.argc; c++)
+						{
+							if (c < ir[i].tmp.argc - 1)
+							{
+								fprintf(llvm, "%s %%%s, ", ir[i].tmp.args[c].type, call_arg[c].arg_value);
+								continue;
+							}
+
+							fprintf(llvm, "%s %%%s", ir[i].tmp.args[c].type, call_arg[c].arg_value);
+						}
+						fprintf(llvm, ")\n");
+
+						tmp_buffer[tmpbuffer_counter].tmp.name = ir[i].tmp.name;
+						tmp_buffer[tmpbuffer_counter].tmp.type = ir[i].tmp.type;
+						tmp_buffer[tmpbuffer_counter].tmp.lo_key = ir[i].tmp.lo_key;
+						tmpbuffer_counter++;
+						tmp_buffer = realloc(tmp_buffer, sizeof(IR) * tmpbuffer_counter * 2);
+						break;
 					default:
-						/* Binary Handle */
+						// Binary Handle
 						if (ir[i].tmp.right != NULL)
 						{
 							if (!current_order && !ir[i].tmp.lo_key)
@@ -495,10 +563,8 @@ void parse_ir()
 							else
 								fprintf(llvm, " %%%s\n", ir[i].tmp.right);
 						}
-
-						tmp_buffer = realloc(tmp_buffer, sizeof(IR) * tmpbuffer_counter * 2);
 						tmp_buffer[tmpbuffer_counter].tmp.name = ir[i].tmp.name;
-						
+
 						if (!current_order && !ir[i].tmp.lo_key)
 							tmp_buffer[tmpbuffer_counter].tmp.type = "i8";
 						else
@@ -536,16 +602,11 @@ void parse_ir()
 					tmp_order = 0;
 				}
 
-				if (tmp_order == storevar_order)
+				if (tmp_order == storevar_order || ir[i].store.arg_key)
 				{
-					fprintf(llvm, "store %s %%%s, %s* ",
+					fprintf(llvm, "store %s %%%s, %s* %%%s\n",
 						ir[i].store.type, ir[i].store.value,
-						ir[i].store.type);
-
-					if (strcmp(ir[i].scope, "global") == 0)
-						fprintf(llvm, "@%s\n", ir[i].store.var_name);
-					else
-						fprintf(llvm, "%%%s\n", ir[i].store.var_name);
+						ir[i].store.type,  ir[i].store.var_name);
 
 					break;
 				}
