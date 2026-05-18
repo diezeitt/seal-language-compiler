@@ -465,6 +465,8 @@ void read_string_literal(uint *i, const uint is_charliteral)
 					escape_tmp[0] = '\a';
 					break;
 				case '0':
+					escape_tmp[0] = '\0';
+					break;
 				default:
 					lexer_error(line_counter, column_counter, INVALID_ESCAPE);
 			}

@@ -296,9 +296,8 @@ char* expr(EXPR* e)
 			}
 			else
 			{
-				char* type = type_control(e->literal);
-				fprintf(ir_source, " %s %s\n", e->literal, type);
-				emit_tmp_singleop(OP_CONST, type, result_literal, 
+				fprintf(ir_source, " %s i64\n", e->literal);
+				emit_tmp_singleop(OP_CONST, "i64", result_literal, 
 					e->literal, NULL, NULL, 0, 0);
 			}
 
@@ -582,20 +581,25 @@ void ir_main()
 
 			case CALL:
 			{
-				arg* call_arg = NULL;
-				call_arg = malloc(sizeof(arg) * ast[i].call.argc);
+				char* result_call = NULL;
+				arg* args = malloc(sizeof(arg) * ast[i].call.argc);
+				char* type = get_functype(ast[i].call.callee);
 
-				for (uint l = 0; l < ast[i].call.argc; l++)
-					call_arg[l].name = expr(ast[i].call.args[l]);
+				for (uint i = 0; i < ast[i].call.argc; i++)
+				{
+					args[i].name = expr(ast[i].call.args[i]);
+					args[i].type = get_argtype(ast[i].call.callee, i);
+				}
+				fprintf(ir_source, "tmp t%d %s call %s", tmp_counter, type, ast[i].call.callee);
 
-				fprintf(ir_source, "tmp t%d call %s",
-					tmp_counter,
-					ast[i].call.callee);
+				fprintf(ir_source, "(");
+				for (uint i = 0; i < ast[i].call.argc; i++)
+					fprintf(ir_source, " %s:%s", args[i].name, args[i].type);
+				fprintf(ir_source, ")\n");
 
-				for (uint l = 0; l < ast[i].call.argc; l++)
-					fprintf(ir_source, " %s", call_arg[l].name);
-
-				fprintf(ir_source, "\n");
+				asprintf(&result_call, "t%d", tmp_counter);
+				emit_call(result_call, ast[i].call.callee, type, args, ast[i].call.argc);
+				tmp_counter++;
 				break;
 			}
 
@@ -630,7 +634,7 @@ void ir_main()
 			case PARSE_ASSIGNMENT:
 			{
 				char* result = expr(ast[i].assignment.value);
-				if (is_local(ast[i].assignment.name) == 0) 
+				if (is_local(ast[i].assignment.name) == 0)
 				{
 					fprintf(ir_source, "store @%s %s %s\n", ast[i].assignment.name,
 						ast[i].assignment.type, result);
