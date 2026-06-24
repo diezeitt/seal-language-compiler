@@ -29,7 +29,6 @@
 #include "diagnostic.h"
 
 #define VERSION "Seal Version - Under\n"
-
 arg_flags arg_flagref;
 
 void parse_arg(uint argc, char** argv, char* *source, char* *output_name)
@@ -101,6 +100,5 @@ int main(int argc, char *argv[])
 	semantic_main();
 	ir_main(sourcefile_path);
 	codegen_main(output_name);
-
 	return 0;
 }

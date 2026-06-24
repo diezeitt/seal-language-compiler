@@ -346,8 +346,11 @@ AST parse_var(uint *i, uint c)
 		return result;
 	}
 
+	EXPR* null = malloc(32);
+	null[0].type = NODE_INT_LITERAL;
+	null[0].literal = "0";
 	overflow_control(*i, MISSING_SEMICOLON);
-	result.var.value = NULL;
+	result.var.value = null;
 
 	if (tokens[*i].token_type != SYMBOL_SEMICOLON)
 		parser_error(tokens[*i].line, tokens[*i].column, MISSING_SEMICOLON);

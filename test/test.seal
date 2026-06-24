@@ -28,5 +28,8 @@
     i32 final_result = level_1_processor(initial_value);
     i1 is_correct = (final_result == 48);
 
-    return is_correct;
+	i32 a[2];
+	a[1] = 33;
+	
+    return is_correct + a[1];
 }
